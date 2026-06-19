@@ -41,7 +41,7 @@ jobs:
     name: deploy
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: ${{ github.ref == 'refs/heads/main' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -67,3 +67,20 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/ci_cd-backend:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/ci_cd-backend:${{ github.sha }}
+  deploy_server:
+    name: deploy_server
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/main' }}
+    steps:
+      - name: Deploy to server (SSH)
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/ci_cd-backend:latest || true
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/ci_cd-frontend:latest || true
+            if [ -f ~/docker-compose.yml ]; then docker-compose -f ~/docker-compose.yml pull || true; docker-compose -f ~/docker-compose.yml up -d --remove-orphans || true; else echo 'No docker-compose.yml found on server at home directory'; fi
