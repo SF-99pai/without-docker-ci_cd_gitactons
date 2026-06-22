@@ -1,7 +1,18 @@
-from fastapi import FastAPI
+import os
+import logging
+from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, HTTPException
+
+from sqlalchemy import create_engine, Column, Integer, String, select
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import sessionmaker, declarative_base, Session
+
+import psycopg2
+from psycopg2 import sql
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -14,7 +25,45 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-employees = []
+# Database configuration (environment overrides allowed)
+PG_USER = os.getenv("POSTGRES_USER", "postgres")
+PG_PASSWORD = os.getenv("POSTGRES_PASSWORD", "P00jitha*19")
+PG_HOST = os.getenv("POSTGRES_HOST", "localhost")
+PG_PORT = os.getenv("POSTGRES_PORT", "5432")
+DB_NAME = os.getenv("POSTGRES_DB", "ci_cd_db")
+
+def ensure_database_exists(user: str, password: str, host: str, port: str, db_name: str):
+    try:
+        conn = psycopg2.connect(dbname="postgres", user=user, password=password, host=host, port=port)
+        conn.autocommit = True
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_name,))
+        exists = cur.fetchone()
+        if not exists:
+            logger.info(f"Creating database {db_name}")
+            cur.execute(sql.SQL("CREATE DATABASE {}") .format(sql.Identifier(db_name)))
+        cur.close()
+        conn.close()
+    except Exception as e:
+        logger.warning(f"Could not ensure database exists: {e}")
+
+
+ensure_database_exists(PG_USER, PG_PASSWORD, PG_HOST, PG_PORT, DB_NAME)
+
+DATABASE_URL = f"postgresql+psycopg2://{PG_USER}:{PG_PASSWORD}@{PG_HOST}:{PG_PORT}/{DB_NAME}"
+
+# Setup SQLAlchemy
+engine = create_engine(DATABASE_URL, echo=False)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+
+class EmployeeDB(Base):
+    __tablename__ = "employees"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    email = Column(String, nullable=False)
+    department = Column(String, nullable=False)
 
 
 class Employee(BaseModel):
@@ -23,39 +72,60 @@ class Employee(BaseModel):
     department: str
 
 
+def get_db():
+    db: Session = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+@app.on_event("startup")
+def on_startup():
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables ensured/created")
+    except OperationalError as e:
+        logger.error(f"Database error on startup: {e}")
+
+
 @app.get("/")
 def home():
     return {"message": "Employee API Running"}
 
 
 @app.post("/employees")
-def create_employee(employee: Employee):
-    # assign a simple incremental id and store as dict
-    next_id = (employees[-1]["id"] + 1) if employees else 1
-    emp_dict = {"id": next_id, "name": employee.name, "email": employee.email, "department": employee.department}
-    employees.append(emp_dict)
-    return {"message": "Employee added successfully", "employee": emp_dict}
+def create_employee(employee: Employee, db: Session = Depends(get_db)):
+    emp = EmployeeDB(name=employee.name, email=employee.email, department=employee.department)
+    db.add(emp)
+    db.commit()
+    db.refresh(emp)
+    return {"message": "Employee added successfully", "employee": {"id": emp.id, "name": emp.name, "email": emp.email, "department": emp.department}}
 
 
 @app.get("/employees")
-def get_employees():
-    return employees
+def get_employees(db: Session = Depends(get_db)):
+    rows = db.execute(select(EmployeeDB)).scalars().all()
+    return [{"id": r.id, "name": r.name, "email": r.email, "department": r.department} for r in rows]
 
-# READ ONE
+
 @app.get("/employees/{employee_id}")
-def get_employee(employee_id: int):
-    for employee in employees:
-        if employee["id"] == employee_id:
-            return employee
+def get_employee(employee_id: int, db: Session = Depends(get_db)):
+    emp = db.get(EmployeeDB, employee_id)
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    return {"id": emp.id, "name": emp.name, "email": emp.email, "department": emp.department}
 
-    raise HTTPException(status_code=404, detail="Employee not found")
 
 @app.put("/employees/{employee_id}")
-def update_employee(employee_id: int, updated_employee: Employee):
-    for index, employee in enumerate(employees):
-        if employee["id"] == employee_id:
-            emp_dict = {"id": employee_id, "name": updated_employee.name, "email": updated_employee.email, "department": updated_employee.department}
-            employees[index] = emp_dict
-            return {"message": "Employee updated successfully", "employee": emp_dict}
-
-    raise HTTPException(status_code=404, detail="Employee not found")
+def update_employee(employee_id: int, updated_employee: Employee, db: Session = Depends(get_db)):
+    emp = db.get(EmployeeDB, employee_id)
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    emp.name = updated_employee.name
+    emp.email = updated_employee.email
+    emp.department = updated_employee.department
+    db.add(emp)
+    db.commit()
+    db.refresh(emp)
+    return {"message": "Employee updated successfully", "employee": {"id": emp.id, "name": emp.name, "email": emp.email, "department": emp.department}}
