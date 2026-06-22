@@ -38,14 +38,49 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Check SSH connectivity (robust)
+        id: ssh_check
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+        run: |
+          python - <<'PY'
+          import socket, os, time
+          host = os.environ.get('SSH_HOST')
+          port = int(os.environ.get('SSH_PORT', '22'))
+          ok = False
+          resolved = []
+          for attempt in range(1, 4):
+              try:
+                  print(f"Attempt {attempt}: resolving {host}")
+                  resolved = socket.gethostbyname_ex(host)[2]
+                  print("Resolved addresses:", resolved)
+                  s = socket.socket()
+                  s.settimeout(10)
+                  print(f"Attempt {attempt}: connecting to {host}:{port}")
+                  s.connect((host, port))
+                  s.close()
+                  ok = True
+                  break
+              except Exception as e:
+                  print(f"Attempt {attempt}: failed: {e}")
+                  time.sleep(5)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"ssh_open={'true' if ok else 'false'}\n")
+              f.write(f"ssh_resolved={','.join(resolved)}\n")
+          if not ok:
+              print('SSH connectivity check failed after retries')
+              exit(1)
+          PY
+
       - name: Deploy to Ubuntu Server
+        if: steps.ssh_check.outputs.ssh_open == 'true'
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
-
           script: |
             cd ~/employee-management
 
