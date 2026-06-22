@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "live-server --port=3000 --open=./index.html"
+    "dev": "live-server --port=3000 --open=./index.html",
+    "build": "node ./scripts/build.js",
+    "test": "echo \"No frontend tests defined\" && exit 0"
   },
   "devDependencies": {
     "live-server": "^1.2.1"
