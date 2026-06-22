@@ -142,7 +142,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: ./docker-compose.yml
-          target: ~
+          target: '~/docker-compose.yml'
 
       - name: Deploy to server (SSH)
         if: ${{ steps.ssh_check.outputs.ssh_open == 'true' }}
