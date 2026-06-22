@@ -136,6 +136,14 @@ jobs:
           echo 'Possible causes: wrong SSH_HOST (private IP), firewall/security group blocking port, NAT without port forwarding, or SSHD down.'
           echo 'To force deployment even if connectivity appears broken, ensure network is reachable or run from a self-hosted runner in same network.'
 
+      - name: List workspace before upload
+        if: ${{ steps.ssh_check.outputs.ssh_open == 'true' }}
+        run: |
+          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+          pwd
+          ls -la || true
+          ls -la docker-compose.yml || true
+
       - name: Upload docker-compose.yml
         if: ${{ steps.ssh_check.outputs.ssh_open == 'true' }}
         uses: appleboy/scp-action@v0.1.0
@@ -144,7 +152,7 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: ./docker-compose.yml
+          source: docker-compose.yml
           target: '~/docker-compose.yml'
 
       - name: Deploy to server (SSH)
