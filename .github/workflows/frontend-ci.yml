@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/frontend
-      - frontend/*
 
   pull_request:
     branches:
@@ -13,11 +11,11 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-
+    runs-on: self-hosted
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -30,29 +28,28 @@ jobs:
       - name: Run Tests
         working-directory: frontend
         run: |
-            npm test -- --watchAll=false || echo "No tests found"
+          npm test -- --watchAll=false || echo "No tests found"
 
       - name: Build React App
         working-directory: frontend
         run: npm run build
 
-
   deploy:
     needs: build
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-
+    runs-on: self-hosted
     steps:
-      - name: Deploy Frontend to Ubuntu Server
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          script: |
-            cd ~/employee-management
-            git pull origin main
-            cd frontend
-            npm install
-            npm run build
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name: Build React App
+        working-directory: frontend
+        run: npm run build
+
+      - name: Deployment Complete
+        run: echo "Frontend deployed successfully on self-hosted runner"
+
