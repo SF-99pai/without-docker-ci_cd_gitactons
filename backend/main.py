@@ -10,6 +10,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base, Session
 
 import psycopg2
 from psycopg2 import sql
+from transformers import Optional
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -64,11 +65,14 @@ class EmployeeDB(Base):
     name = Column(String, nullable=False)
     email = Column(String, nullable=False)
     department = Column(String, nullable=False)
+    role = Column(String, nullable=True) 
 
 
 class Employee(BaseModel):
     name: str
     email: str
+    department: str
+    role: str   
     department: str
 
 
@@ -96,17 +100,17 @@ def home():
 
 @app.post("/employees")
 def create_employee(employee: Employee, db: Session = Depends(get_db)):
-    emp = EmployeeDB(name=employee.name, email=employee.email, department=employee.department)
+    emp = EmployeeDB(name=employee.name, email=employee.email, department=employee.department, role=employee.role)
     db.add(emp)
     db.commit()
     db.refresh(emp)
-    return {"message": "Employee added successfully", "employee": {"id": emp.id, "name": emp.name, "email": emp.email, "department": emp.department}}
+    return {"message": "Employee added successfully", "employee": {"id": emp.id, "name": emp.name, "email": emp.email, "department": emp.department, "role": emp.role}}
 
 
 @app.get("/employees")
 def get_employees(db: Session = Depends(get_db)):
     rows = db.execute(select(EmployeeDB)).scalars().all()
-    return [{"id": r.id, "name": r.name, "email": r.email, "department": r.department} for r in rows]
+    return [{"id": r.id, "name": r.name, "email": r.email, "department": r.department, "role": r.role} for r in rows]
 
 
 @app.get("/employees/{employee_id}")
@@ -114,7 +118,7 @@ def get_employee(employee_id: int, db: Session = Depends(get_db)):
     emp = db.get(EmployeeDB, employee_id)
     if not emp:
         raise HTTPException(status_code=404, detail="Employee not found")
-    return {"id": emp.id, "name": emp.name, "email": emp.email, "department": emp.department}
+    return {"id": emp.id, "name": emp.name, "email": emp.email, "department": emp.department, "role": emp.role}
 
 
 @app.put("/employees/{employee_id}")
@@ -125,7 +129,8 @@ def update_employee(employee_id: int, updated_employee: Employee, db: Session = 
     emp.name = updated_employee.name
     emp.email = updated_employee.email
     emp.department = updated_employee.department
+    emp.role = updated_employee.role
     db.add(emp)
     db.commit()
     db.refresh(emp)
-    return {"message": "Employee updated successfully", "employee": {"id": emp.id, "name": emp.name, "email": emp.email, "department": emp.department}}
+    return {"message": "Employee updated successfully", "employee": {"id": emp.id, "name": emp.name, "email": emp.email, "department": emp.department, "role": emp.role}}
