@@ -5,6 +5,7 @@ function EmployeeForm({ onAdded, employeeId }) {
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [department, setDepartment] = useState("");
+    const [role, setRole] = useState("");
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
@@ -20,6 +21,7 @@ function EmployeeForm({ onAdded, employeeId }) {
                 setName(data.name || '');
                 setEmail(data.email || '');
                 setDepartment(data.department || '');
+                setRole(data.role || '');
             } catch (err) {
                 alert('Failed to load employee for editing');
             } finally {
@@ -33,7 +35,7 @@ function EmployeeForm({ onAdded, employeeId }) {
     async function handleSubmit(e) {
         e.preventDefault();
         setLoading(true);
-        const payload = { name, email, department };
+        const payload = { name, email, department, role };
         try {
             let res;
             if (employeeId) {
@@ -54,6 +56,7 @@ function EmployeeForm({ onAdded, employeeId }) {
             setName('');
             setEmail('');
             setDepartment('');
+            setRole('');
             // pass created/updated employee back to parent so list can update immediately
             onAdded(result.employee || null);
         } catch (err) {
@@ -70,6 +73,7 @@ function EmployeeForm({ onAdded, employeeId }) {
                 <input value={name} onChange={e => setName(e.target.value)} placeholder="Name" required />
                 <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" type="email" required />
                 <input value={department} onChange={e => setDepartment(e.target.value)} placeholder="Department" required />
+                <input value={role} onChange={e => setRole(e.target.value)} placeholder="Role" required />
                 <button type="submit" disabled={loading}>{loading ? 'Saving...' : (employeeId ? 'Update Employee' : 'Add Employee')}</button>
             </form>
         </div>
@@ -121,6 +125,7 @@ function EmployeeList({ refreshKey, addedEmployee }) {
                             <th>Name</th>
                             <th>Email</th>
                             <th>Department</th>
+                            <th>Role</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -130,6 +135,7 @@ function EmployeeList({ refreshKey, addedEmployee }) {
                                 <td>{emp.name}</td>
                                 <td>{emp.email}</td>
                                 <td>{emp.department}</td>
+                                <td>{emp.role}</td>
                             </tr>
                         ))}
                     </tbody>
