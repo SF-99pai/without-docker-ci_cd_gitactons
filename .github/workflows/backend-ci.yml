@@ -28,7 +28,7 @@ jobs:
       - name: Run Tests
         run: |
           cd backend
-          pytest || echo "No tests found"
+          pytest 
 
   deploy:
     needs: test
