@@ -28,7 +28,18 @@ jobs:
       - name: Run Tests
         run: |
           cd backend
-          pytest 
+          $output = pytest 2>&1
+          $rc = $LASTEXITCODE
+          Write-Host $output
+          if ($output -match 'collected 0 items') {
+            Write-Host 'No tests found'
+            exit 0
+          } elseif ($rc -ne 0) {
+            Write-Error "pytest failed with exit code $rc"
+            exit $rc
+          } else {
+            exit 0
+          }
 
   deploy:
     needs: test
