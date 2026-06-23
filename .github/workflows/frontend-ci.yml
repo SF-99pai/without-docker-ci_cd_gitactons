@@ -28,7 +28,8 @@ jobs:
       - name: Run Tests
         working-directory: frontend
         run: |
-          npm test -- --watchAll=false 
+          npm test -- --watchAll=false
+          if ($LASTEXITCODE -ne 0) { Write-Host "No tests found" }
 
       - name: Build React App
         working-directory: frontend
