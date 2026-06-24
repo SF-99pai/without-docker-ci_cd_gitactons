@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
-from sqlalchemy import create_engine, Column, Integer, String, select
+from sqlalchemy import create_engine, Column, Integer, String, select, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 
@@ -88,6 +88,14 @@ def on_startup():
     try:
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables ensured/created")
+        try:
+            # Ensure 'role' column exists for older DBs created before this field was added
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE employees ADD COLUMN IF NOT EXISTS role VARCHAR"))
+                conn.commit()
+            logger.info("Ensured 'role' column exists on employees table")
+        except Exception as e:
+            logger.warning(f"Could not ensure 'role' column exists: {e}")
     except OperationalError as e:
         logger.error(f"Database error on startup: {e}")
 
