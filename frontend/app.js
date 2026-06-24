@@ -1,5 +1,5 @@
 const { useState, useEffect } = React;
-const API_URL = "http://127.0.0.1:8000"; // adjust if backend runs elsewhere
+const API_URL = window.location.origin; // adjust if backend runs elsewhere
 
 function EmployeeForm({ onAdded, employeeId }) {
     const [name, setName] = useState("");
