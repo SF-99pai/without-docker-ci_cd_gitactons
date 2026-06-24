@@ -5,7 +5,6 @@ function EmployeeForm({ onAdded, employeeId }) {
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [department, setDepartment] = useState("");
-    const [role, setRole] = useState("");
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
@@ -21,7 +20,6 @@ function EmployeeForm({ onAdded, employeeId }) {
                 setName(data.name || '');
                 setEmail(data.email || '');
                 setDepartment(data.department || '');
-                setRole(data.role || '');
             } catch (err) {
                 alert('Failed to load employee for editing');
             } finally {
@@ -35,7 +33,7 @@ function EmployeeForm({ onAdded, employeeId }) {
     async function handleSubmit(e) {
         e.preventDefault();
         setLoading(true);
-        const payload = { name, email, department, role };
+        const payload = { name, email, department };
         try {
             let res;
             if (employeeId) {
@@ -56,7 +54,6 @@ function EmployeeForm({ onAdded, employeeId }) {
             setName('');
             setEmail('');
             setDepartment('');
-            setRole('');
             // pass created/updated employee back to parent so list can update immediately
             onAdded(result.employee || null);
         } catch (err) {
@@ -73,7 +70,6 @@ function EmployeeForm({ onAdded, employeeId }) {
                 <input value={name} onChange={e => setName(e.target.value)} placeholder="Name" required />
                 <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" type="email" required />
                 <input value={department} onChange={e => setDepartment(e.target.value)} placeholder="Department" required />
-                <input value={role} onChange={e => setRole(e.target.value)} placeholder="Role" required />
                 <button type="submit" disabled={loading}>{loading ? 'Saving...' : (employeeId ? 'Update Employee' : 'Add Employee')}</button>
             </form>
         </div>
@@ -125,17 +121,15 @@ function EmployeeList({ refreshKey, addedEmployee }) {
                             <th>Name</th>
                             <th>Email</th>
                             <th>Department</th>
-                            <th>Role</th>
                         </tr>
                     </thead>
                     <tbody>
                         {employees.map(emp => (
-                            <tr key={emp.id} onDoubleClick={() => window.location.href = `form.html?id=${emp.id}`} style={{ cursor: 'pointer' }}>
+                            <tr key={emp.id} onDoubleClick={() => window.location.href = `/static/form.html?id=${emp.id}`} style={{ cursor: 'pointer' }}>
                                 <td>{emp.id}</td>
                                 <td>{emp.name}</td>
                                 <td>{emp.email}</td>
                                 <td>{emp.department}</td>
-                                <td>{emp.role}</td>
                             </tr>
                         ))}
                     </tbody>
@@ -150,7 +144,7 @@ function App() {
     const [lastAdded, setLastAdded] = useState(null);
 
     // decide which page to render based on URL
-    const isFormPage = window.location.pathname.endsWith('form.html');
+    const isFormPage = window.location.pathname.endsWith('/static/form.html');
     const urlParams = new URLSearchParams(window.location.search);
     const editingId = urlParams.get('id') ? Number(urlParams.get('id')) : null;
 
@@ -158,7 +152,7 @@ function App() {
         if (employee) setLastAdded(employee);
         // on any add, navigate back to index (if on form page)
         if (isFormPage) {
-            window.location.href = 'index.html';
+            window.location.href = '/static/index.html';
             return;
         }
         setRefreshKey(k => k + 1);
@@ -177,7 +171,7 @@ function App() {
         <div className="container">
             <h1>Employee Management</h1>
             <div style={{ marginBottom: 12 }}>
-                <a href="form.html" className="btn">Add Employee</a>
+                <a href="/static/form.html" className="btn">Add Employee</a>
             </div>
             <EmployeeList refreshKey={refreshKey} addedEmployee={lastAdded} />
         </div>

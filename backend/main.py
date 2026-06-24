@@ -4,18 +4,33 @@ from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
-from sqlalchemy import create_engine, Column, Integer, String, select, text
+from sqlalchemy import create_engine, Column, Integer, String, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 
 import psycopg2
 from psycopg2 import sql
 from typing import Optional
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+
+frontend_dir = os.path.join(
+    os.path.dirname(__file__),
+    "..",
+    "frontend"
+)
+
+app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
+
+@app.get("/")
+def serve_index():
+    return FileResponse(os.path.join(frontend_dir, "index.html"))
 
 # Allow frontend access
 app.add_middleware(
@@ -65,14 +80,14 @@ class EmployeeDB(Base):
     name = Column(String, nullable=False)
     email = Column(String, nullable=False)
     department = Column(String, nullable=False)
-    role = Column(String, nullable=True) 
+    
 
 
 class Employee(BaseModel):
     name: str
     email: str
     department: str
-    role: Optional[str] = None
+   
 
 
 def get_db():
@@ -88,36 +103,25 @@ def on_startup():
     try:
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables ensured/created")
-        try:
-            # Ensure 'role' column exists for older DBs created before this field was added
-            with engine.connect() as conn:
-                conn.execute(text("ALTER TABLE employees ADD COLUMN IF NOT EXISTS role VARCHAR"))
-                conn.commit()
-            logger.info("Ensured 'role' column exists on employees table")
-        except Exception as e:
-            logger.warning(f"Could not ensure 'role' column exists: {e}")
     except OperationalError as e:
         logger.error(f"Database error on startup: {e}")
 
 
-@app.get("/")
-def home():
-    return {"message": "Employee API Running"}
 
 
 @app.post("/employees")
 def create_employee(employee: Employee, db: Session = Depends(get_db)):
-    emp = EmployeeDB(name=employee.name, email=employee.email, department=employee.department, role=employee.role)
+    emp = EmployeeDB(name=employee.name, email=employee.email, department=employee.department)
     db.add(emp)
     db.commit()
     db.refresh(emp)
-    return {"message": "Employee added successfully", "employee": {"id": emp.id, "name": emp.name, "email": emp.email, "department": emp.department, "role": emp.role}}
+    return {"message": "Employee added successfully", "employee": {"id": emp.id, "name": emp.name, "email": emp.email, "department": emp.department}}
 
 
 @app.get("/employees")
 def get_employees(db: Session = Depends(get_db)):
     rows = db.execute(select(EmployeeDB)).scalars().all()
-    return [{"id": r.id, "name": r.name, "email": r.email, "department": r.department, "role": r.role} for r in rows]
+    return [{"id": r.id, "name": r.name, "email": r.email, "department": r.department} for r in rows]
 
 
 @app.get("/employees/{employee_id}")
@@ -125,7 +129,7 @@ def get_employee(employee_id: int, db: Session = Depends(get_db)):
     emp = db.get(EmployeeDB, employee_id)
     if not emp:
         raise HTTPException(status_code=404, detail="Employee not found")
-    return {"id": emp.id, "name": emp.name, "email": emp.email, "department": emp.department, "role": emp.role}
+    return {"id": emp.id, "name": emp.name, "email": emp.email, "department": emp.department}
 
 
 @app.put("/employees/{employee_id}")
@@ -136,8 +140,7 @@ def update_employee(employee_id: int, updated_employee: Employee, db: Session = 
     emp.name = updated_employee.name
     emp.email = updated_employee.email
     emp.department = updated_employee.department
-    emp.role = updated_employee.role
     db.add(emp)
     db.commit()
     db.refresh(emp)
-    return {"message": "Employee updated successfully", "employee": {"id": emp.id, "name": emp.name, "email": emp.email, "department": emp.department, "role": emp.role}}
+    return {"message": "Employee updated successfully", "employee": {"id": emp.id, "name": emp.name, "email": emp.email}}
