@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - main
+      - CI/CD_frontend
 
   pull_request:
     branches:
       - main
+      - CI/CD_frontend
 
 jobs:
   build:
