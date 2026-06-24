@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base, Session
 
 import psycopg2
 from psycopg2 import sql
-from transformers import Optional
+from typing import Optional
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -72,8 +72,7 @@ class Employee(BaseModel):
     name: str
     email: str
     department: str
-    role: str   
-    department: str
+    role: Optional[str] = None
 
 
 def get_db():
